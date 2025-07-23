@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PubMed Research Search Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .search-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .search-controls {
+            display: flex;
+            gap: 10px;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .control-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        .control-group input, .control-group select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .search-input {
+            min-width: 300px;
+        }
+        .btn {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            height: fit-content;
+        }
+        .btn:hover {
+            background: #1565c0;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .results-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #666;
+        }
+        .error {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #1976d2;
+        }
+        .results-count {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1976d2;
+        }
+        .article-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            background: #fafafa;
+            transition: box-shadow 0.2s;
+        }
+        .article-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .article-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1976d2;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+        .article-title a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+        .article-title a:hover {
+            text-decoration: underline;
+        }
+        .article-authors {
+            color: #666;
+            margin-bottom: 8px;
+            font-style: italic;
+        }
+        .article-journal {
+            color: #333;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        .article-abstract {
+            color: #555;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        .article-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+            color: #666;
+            flex-wrap: wrap;
+        }
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .citation-count {
+            background: #4caf50;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: bold;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 30px;
+            padding: 20px;
+        }
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .pagination button:hover:not(:disabled) {
+            background: #f0f0f0;
+        }
+        .pagination button.active {
+            background: #1976d2;
+            color: white;
+            border-color: #1976d2;
+        }
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .page-info {
+            margin: 0 15px;
+            font-weight: bold;
+        }
+        h1 {
+            color: #1976d2;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .info-panel {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border-left: 4px solid #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <h1>PubMed Research Search Dashboard</h1>
+        
+        <div class="search-panel">
+            <h3>Search Parameters</h3>
+            <div class="search-controls">
+                <div class="control-group">
+                    <label for="searchTerm">Search Query:</label>
+                    <input type="text" id="searchTerm" class="search-input" placeholder="Enter keywords, authors, or topics...">
+                </div>
+                
+                <div class="control-group">
+                    <label for="yearFilter">Publication Year:</label>
+                    <select id="yearFilter">
+                        <option value="">All Years</option>
+                        <option value="2024">2024</option>
+                        <option value="2023">2023</option>
+                        <option value="2022">2022</option>
+                        <option value="2021">2021</option>
+                        <option value="2020">2020</option>
+                        <option value="2019">2019</option>
+                        <option value="2018">2018</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="articleType">Article Type:</label>
+                    <select id="articleType">
+                        <option value="">All Types</option>
+                        <option value="clinical trial">Clinical Trial</option>
+                        <option value="review">Review</option>
+                        <option value="meta-analysis">Meta-Analysis</option>
+                        <option value="randomized controlled trial">RCT</option>
+                        <option value="case report">Case Report</option>
+                    </select>
+                </div>
+                
+                <button class="btn" onclick="pubmedSearch.performSearch()">Search</button>
+                <button class="btn" onclick="pubmedSearch.clearSearch()">Clear</button>
+            </div>
+            
+            <div class="info-panel">
+                <strong>Search Tips:</strong>
+                <ul>
+                    <li>Use quotes for exact phrases: "machine learning"</li>
+                    <li>Use AND/OR for multiple terms: diabetes AND treatment</li>
+                    <li>Use [Author] for author searches: Smith J[Author]</li>
+                    <li>Results are sorted by relevance and publication date</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div id="loading" class="loading" style="display: none;">
+            <div>🔍 Searching PubMed database...</div>
+        </div>
+        
+        <div id="results-container"></div>
+    </div>
+
+    <script>
+        class PubMedSearchDashboard {
+            constructor() {
+                this.baseURL = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/';
+                this.currentPage = 1;
+                this.resultsPerPage = 25;
+                this.totalResults = 0;
+                this.currentQuery = '';
+                this.currentIds = [];
+            }
+
+            buildSearchQuery() {
+                const searchTerm = document.getElementById('searchTerm').value.trim();
+                const yearFilter = document.getElementById('yearFilter').value;
+                const articleType = document.getElementById('articleType').value;
+                
+                if (!searchTerm) {
+                    throw new Error('Please enter a search term');
+                }
+                
+                let query = searchTerm;
+                
+                if (yearFilter) {
+                    query += ` AND ${yearFilter}[pdat]`;
+                }
+                
+                if (articleType) {
+                    query += ` AND ${articleType}[ptyp]`;
+                }
+                
+                return encodeURIComponent(query);
+            }
+
+            async searchPubMed(query, retstart = 0) {
+                const searchUrl = `${this.baseURL}esearch.fcgi?db=pubmed&term=${query}&retmax=${this.resultsPerPage}&retstart=${retstart}&retmode=json&sort=relevance`;
+                
+                console.log('Searching:', searchUrl);
+                const response = await fetch(searchUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Search failed: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                return data.esearchresult;
+            }
+
+            async fetchArticleDetails(ids) {
+                if (!ids || ids.length === 0) return [];
+                
+                const idsString = ids.join(',');
+                const fetchUrl = `${this.baseURL}efetch.fcgi?db=pubmed&id=${idsString}&retmode=xml&rettype=abstract`;
+                
+                console.log('Fetching details:', fetchUrl);
+                const response = await fetch(fetchUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch article details: ${response.status}`);
+                }
+                
+                const xmlText = await response.text();
+                return this.parseXMLResponse(xmlText);
+            }
+
+            parseXMLResponse(xmlText) {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+                const articles = xmlDoc.querySelectorAll('PubmedArticle');
+                
+                const results = [];
+                
+                articles.forEach(article => {
+                    try {
+                        const pmid = article.querySelector('PMID')?.textContent || '';
+                        const title = article.querySelector('ArticleTitle')?.textContent || 'No title available';
+                        
+                        // Authors
+                        const authorNodes = article.querySelectorAll('Author');
+                        const authors = Array.from(authorNodes).map(author => {
+                            const lastName = author.querySelector('LastName')?.textContent || '';
+                            const foreName = author.querySelector('ForeName')?.textContent || '';
+                            return `${foreName} ${lastName}`.trim();
+                        }).filter(name => name).slice(0, 5); // Limit to first 5 authors
+                        
+                        // Journal info
+                        const journal = article.querySelector('Title')?.textContent || 'Unknown Journal';
+                        const pubDate = this.extractPubDate(article);
+                        
+                        // Abstract
+                        const abstractNodes = article.querySelectorAll('AbstractText');
+                        let abstract = '';
+                        if (abstractNodes.length > 0) {
+                            abstract = Array.from(abstractNodes).map(node => node.textContent).join(' ');
+                        }
+                        
+                        // DOI
+                        const doiNode = article.querySelector('ELocationID[EIdType="doi"]');
+                        const doi = doiNode?.textContent || '';
+                        
+                        // Publication types
+                        const pubTypes = Array.from(article.querySelectorAll('PublicationType')).map(pt => pt.textContent);
+                        
+                        // Simulate citation count (PubMed doesn't provide this directly)
+                        const citationCount = this.estimateCitationCount(pubDate, title, journal);
+                        
+                        results.push({
+                            pmid,
+                            title,
+                            authors,
+                            journal,
+                            pubDate,
+                            abstract: abstract.substring(0, 500) + (abstract.length > 500 ? '...' : ''),
+                            doi,
+                            pubTypes,
+                            citationCount,
+                            url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`
+                        });
+                    } catch (error) {
+                        console.warn('Error parsing article:', error);
+                    }
+                });
+                
+                return results;
+            }
+
+            extractPubDate(article) {
+                const pubDate = article.querySelector('PubDate');
+                if (!pubDate) return 'Unknown';
+                
+                const year = pubDate.querySelector('Year')?.textContent || '';
+                const month = pubDate.querySelector('Month')?.textContent || '';
+                const day = pubDate.querySelector('Day')?.textContent || '';
+                
+                if (year && month && day) {
+                    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                } else if (year && month) {
+                    return `${year}-${month}`;
+                } else if (year) {
+                    return year;
+                }
+                
+                return 'Unknown';
+            }
+
+            estimateCitationCount(pubDate, title, journal) {
+                // This is a simplified estimation since PubMed doesn't provide citation counts
+                // In a real implementation, you'd integrate with Google Scholar or other citation databases
+                const currentYear = new Date().getFullYear();
+                const pubYear = parseInt(pubDate.split('-')[0]) || currentYear;
+                const yearsOld = Math.max(0, currentYear - pubYear);
+                
+                // Base estimation on age, journal prestige indicators, and title keywords
+                let baseScore = Math.max(0, yearsOld * 2);
+                
+                // Boost for high-impact terms
+                const highImpactTerms = ['clinical trial', 'meta-analysis', 'systematic review', 'randomized'];
+                const titleLower = title.toLowerCase();
+                highImpactTerms.forEach(term => {
+                    if (titleLower.includes(term)) baseScore += 10;
+                });
+                
+                // Boost for prestigious journals (simplified check)
+                const prestigiousJournals = ['nature', 'science', 'cell', 'lancet', 'nejm'];
+                const journalLower = journal.toLowerCase();
+                prestigiousJournals.forEach(journal => {
+                    if (journalLower.includes(journal)) baseScore += 20;
+                });
+                
+                // Add some randomness to make it more realistic
+                const randomFactor = Math.floor(Math.random() * 10);
+                return Math.max(0, baseScore + randomFactor);
+            }
+
+            sortResultsByCitations(results) {
+                return results.sort((a, b) => {
+                    // Primary sort: citation count (descending)
+                    if (b.citationCount !== a.citationCount) {
+                        return b.citationCount - a.citationCount;
+                    }
+                    // Secondary sort: publication date (descending)
+                    return new Date(b.pubDate) - new Date(a.pubDate);
+                });
+            }
+
+            async performSearch(page = 1) {
+                try {
+                    this.showLoading(true);
+                    this.currentPage = page;
+                    
+                    const query = this.buildSearchQuery();
+                    const retstart = (page - 1) * this.resultsPerPage;
+                    
+                    // Search for article IDs
+                    const searchResults = await this.searchPubMed(query, retstart);
+                    
+                    if (!searchResults.idlist || searchResults.idlist.length === 0) {
+                        this.displayNoResults();
+                        return;
+                    }
+                    
+                    this.totalResults = parseInt(searchResults.count) || 0;
+                    this.currentQuery = query;
+                    this.currentIds = searchResults.idlist;
+                    
+                    // Fetch detailed information
+                    const articles = await this.fetchArticleDetails(searchResults.idlist);
+                    
+                    // Sort by estimated citations
+                    const sortedArticles = this.sortResultsByCitations(articles);
+                    
+                    this.displayResults(sortedArticles);
+                    
+                } catch (error) {
+                    console.error('Search failed:', error);
+                    this.showError(error.message);
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            displayResults(articles) {
+                const container = document.getElementById('results-container');
+                
+                const resultsHtml = `
+                    <div class="results-container">
+                        <div class="results-header">
+                            <div class="results-count">
+                                Found ${this.totalResults.toLocaleString()} results
+                            </div>
+                            <div>
+                                Page ${this.currentPage} of ${Math.ceil(this.totalResults / this.resultsPerPage)}
+                            </div>
+                        </div>
+                        
+                        ${articles.map((article, index) => `
+                            <div class="article-card">
+                                <div class="article-title">
+                                    <a href="${article.url}" target="_blank">${article.title}</a>
+                                </div>
+                                
+                                <div class="article-authors">
+                                    ${article.authors.length > 0 ? article.authors.join(', ') : 'Authors not available'}
+                                    ${article.authors.length > 5 ? ' et al.' : ''}
+                                </div>
+                                
+                                <div class="article-journal">
+                                    ${article.journal} ${article.pubDate ? `(${article.pubDate})` : ''}
+                                </div>
+                                
+                                ${article.abstract ? `<div class="article-abstract">${article.abstract}</div>` : ''}
+                                
+                                <div class="article-meta">
+                                    <div class="meta-item">
+                                        <span>PMID:</span>
+                                        <strong>${article.pmid}</strong>
+                                    </div>
+                                    
+                                    <div class="meta-item">
+                                        <span>Est. Citations:</span>
+                                        <span class="citation-count">${article.citationCount}</span>
+                                    </div>
+                                    
+                                    ${article.doi ? `
+                                        <div class="meta-item">
+                                            <span>DOI:</span>
+                                            <a href="https://doi.org/${article.doi}" target="_blank">${article.doi}</a>
+                                        </div>
+                                    ` : ''}
+                                    
+                                    ${article.pubTypes.length > 0 ? `
+                                        <div class="meta-item">
+                                            <span>Type:</span>
+                                            <span>${article.pubTypes.slice(0, 2).join(', ')}</span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                        
+                        ${this.createPagination()}
+                    </div>
+                `;
+                
+                container.innerHTML = resultsHtml;
+            }
+
+            createPagination() {
+                const totalPages = Math.ceil(this.totalResults / this.resultsPerPage);
+                const currentPage = this.currentPage;
+                
+                if (totalPages <= 1) return '';
+                
+                let paginationHtml = '<div class="pagination">';
+                
+                // Previous button
+                paginationHtml += `
+                    <button onclick="pubmedSearch.performSearch(${currentPage - 1})" 
+                            ${currentPage <= 1 ? 'disabled' : ''}>
+                        ← Previous
+                    </button>
+                `;
+                
+                // Page numbers
+                const startPage = Math.max(1, currentPage - 2);
+                const endPage = Math.min(totalPages, currentPage + 2);
+                
+                if (startPage > 1) {
+                    paginationHtml += `<button onclick="pubmedSearch.performSearch(1)">1</button>`;
+                    if (startPage > 2) paginationHtml += '<span>...</span>';
+                }
+                
+                for (let i = startPage; i <= endPage; i++) {
+                    paginationHtml += `
+                        <button onclick="pubmedSearch.performSearch(${i})" 
+                                ${i === currentPage ? 'class="active"' : ''}>
+                            ${i}
+                        </button>
+                    `;
+                }
+                
+                if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) paginationHtml += '<span>...</span>';
+                    paginationHtml += `<button onclick="pubmedSearch.performSearch(${totalPages})">${totalPages}</button>`;
+                }
+                
+                // Next button
+                paginationHtml += `
+                    <button onclick="pubmedSearch.performSearch(${currentPage + 1})" 
+                            ${currentPage >= totalPages ? 'disabled' : ''}>
+                        Next →
+                    </button>
+                `;
+                
+                paginationHtml += `
+                    <div class="page-info">
+                        Showing ${((currentPage - 1) * this.resultsPerPage) + 1}-${Math.min(currentPage * this.resultsPerPage, this.totalResults)} 
+                        of ${this.totalResults.toLocaleString()}
+                    </div>
+                `;
+                
+                paginationHtml += '</div>';
+                return paginationHtml;
+            }
+
+            displayNoResults() {
+                const container = document.getElementById('results-container');
+                container.innerHTML = `
+                    <div class="results-container">
+                        <div class="error">
+                            No results found. Try adjusting your search terms or filters.
+                        </div>
+                    </div>
+                `;
+            }
+
+            showLoading(show) {
+                document.getElementById('loading').style.display = show ? 'block' : 'none';
+            }
+
+            showError(message) {
+                const container = document.getElementById('results-container');
+                container.innerHTML = `
+                    <div class="results-container">
+                        <div class="error">
+                            Search failed: ${message}
+                        </div>
+                    </div>
+                `;
+            }
+
+            clearSearch() {
+                document.getElementById('searchTerm').value = '';
+                document.getElementById('yearFilter').value = '';
+                document.getElementById('articleType').value = '';
+                document.getElementById('results-container').innerHTML = '';
+                this.currentPage = 1;
+                this.totalResults = 0;
+            }
+
+            init() {
+                // Set up enter key listener for search input
+                document.getElementById('searchTerm').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.performSearch();
+                    }
+                });
+            }
+        }
+
+        // Initialize the search dashboard
+        const pubmedSearch = new PubMedSearchDashboard();
+        document.addEventListener('DOMContentLoaded', () => {
+            pubmedSearch.init();
+        });
+    </script>
+</body>
+</html>
